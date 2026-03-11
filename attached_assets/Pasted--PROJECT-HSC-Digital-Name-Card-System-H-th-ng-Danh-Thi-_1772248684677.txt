@@ -1,0 +1,200 @@
+# PROJECT: HSC Digital Name Card System
+# Hệ thống Danh Thiếp Kỹ Thuật Số Nội Bộ Công Ty
+
+## MÔ TẢ TỔNG QUAN
+Xây dựng một ứng dụng web full-stack cho phép công ty quản lý và hiển thị 
+danh thiếp kỹ thuật số cho từng nhân viên. Mỗi nhân viên có một trang profile 
+riêng tại URL: https://hsc-danhthiep.com.vn/{mã_nhân_viên}
+Ví dụ: nhân viên mã 123 → https://hsc-danhthiep.com.vn/123
+
+Danh thiếp có thể truy cập qua: thẻ NFC, mã QR, hoặc URL trực tiếp.
+
+---
+
+## TECH STACK
+- **Frontend**: React.js + TailwindCSS
+- **Backend**: Node.js + Express.js (hoặc Next.js full-stack)
+- **Database**: PostgreSQL (hoặc Supabase)
+- **Authentication**: JWT cho Admin panel
+- **QR Code**: thư viện qrcode.react
+- **File Storage**: Cloudinary hoặc local upload cho ảnh đại diện
+
+---
+
+## CẤU TRÚC DỮ LIỆU (Database Schema)
+
+### Bảng `employees` (Nhân viên)
+```sql
+- id: VARCHAR PRIMARY KEY (mã nhân viên, ví dụ: "123", "NV001")
+- full_name: VARCHAR (họ và tên)
+- position: VARCHAR (chức vụ)
+- department: VARCHAR (phòng ban)
+- email: VARCHAR (email công ty)
+- phone: VARCHAR (số điện thoại)
+- phone_ext: VARCHAR (số máy nhánh nội bộ)
+- avatar_url: TEXT (đường dẫn ảnh đại diện)
+- company_name: VARCHAR (tên công ty - mặc định HSC)
+- company_logo_url: TEXT (logo công ty)
+- linkedin_url: VARCHAR
+- facebook_url: VARCHAR  
+- zalo_phone: VARCHAR
+- website_url: VARCHAR
+- address: TEXT (địa chỉ văn phòng)
+- is_active: BOOLEAN (hiển thị hay ẩn)
+- created_at: TIMESTAMP
+- updated_at: TIMESTAMP
+```
+
+### Bảng `card_views` (Analytics)
+```sql
+- id: SERIAL PRIMARY KEY
+- employee_id: VARCHAR (FK → employees.id)
+- viewed_at: TIMESTAMP
+- source: VARCHAR ('qr', 'nfc', 'direct', 'unknown')
+- ip_address: VARCHAR
+- user_agent: TEXT
+```
+
+### Bảng `admins` (Quản trị viên)
+```sql
+- id: SERIAL PRIMARY KEY
+- username: VARCHAR UNIQUE
+- password_hash: VARCHAR
+- created_at: TIMESTAMP
+```
+
+---
+
+## CÁC TRANG CẦN XÂY DỰNG
+
+### 1. TRANG DANH THIẾP CÔNG KHAI (Public Card Page)
+**Route**: `/:employee_id` (ví dụ: /123, /NV001)
+
+**Thiết kế giao diện:**
+- Mobile-first design, tối ưu cho điện thoại
+- Header: ảnh đại diện tròn lớn (120px), tên đầy đủ, chức vụ, phòng ban
+- Logo công ty góc trên
+- Màu chủ đạo theo brand công ty (ví dụ: xanh navy #003366 hoặc để config)
+- Card nền trắng, shadow nhẹ, bo góc đẹp
+
+**Các nút hành động:**
+- 📞 **Gọi điện** → `tel:` link
+- ✉️ **Email** → `mailto:` link  
+- 💬 **Zalo** → deep link Zalo
+- 💼 **LinkedIn** → mở LinkedIn
+- 🌐 **Website** → mở website công ty
+- 📥 **Lưu Danh Bạ** → tạo và tải file .vcf (vCard) tự động
+
+**Nút QR Code:**
+- Nút "Hiện QR Code" → popup/modal hiển thị QR code của trang profile
+- QR code có logo công ty ở giữa
+- Nút tải QR code về máy (PNG)
+
+**Footer:**
+- "Powered by HSC" hoặc tên công ty
+- Thông tin địa chỉ văn phòng
+
+### 2. TRANG ADMIN DASHBOARD
+**Route**: `/admin` → redirect `/admin/login` nếu chưa đăng nhập
+
+**Admin Login:**
+- Form đăng nhập username/password đơn giản
+- JWT token lưu localStorage
+
+**Admin Dashboard - Quản lý nhân viên:**
+- Bảng danh sách nhân viên với: mã NV, tên, phòng ban, chức vụ, trạng thái
+- Search/filter theo tên, phòng ban
+- Nút "Thêm nhân viên mới"
+- Nút "Sửa" và "Ẩn/Hiện" cho mỗi nhân viên
+- Nút "Xem danh thiếp" → mở trang public trong tab mới
+- Nút "Tải QR Code" → tải QR code của nhân viên đó
+
+**Form Thêm/Sửa Nhân Viên:**
+- Input đầy đủ tất cả fields
+- Upload ảnh đại diện (resize về 400x400px)
+- Preview danh thiếp real-time bên phải form
+- Validate: mã nhân viên không trùng, email đúng format
+
+**Admin Dashboard - Analytics:**
+- Tổng lượt xem toàn công ty (7 ngày, 30 ngày)
+- Top 10 nhân viên được xem nhiều nhất
+- Biểu đồ lượt xem theo ngày (dùng recharts hoặc Chart.js)
+- Lọc theo nguồn: QR / NFC / Direct
+
+### 3. TRANG 404
+- Hiển thị khi mã nhân viên không tồn tại hoặc đã bị ẩn
+- Nội dung: "Danh thiếp không tìm thấy" + logo công ty
+
+---
+
+## API ENDPOINTS (Backend)
+GET  /:employee_id          → Lấy thông tin nhân viên (public)
+POST /api/analytics/track   → Ghi lại lượt xem (source: qr/nfc/direct)
+POST /api/admin/login       → Đăng nhập admin, trả JWT
+GET  /api/admin/employees   → Danh sách nhân viên (cần JWT)
+POST /api/admin/employees   → Thêm nhân viên mới (cần JWT)
+PUT  /api/admin/employees/:id → Cập nhật nhân viên (cần JWT)
+PATCH /api/admin/employees/:id/toggle → Ẩn/hiện nhân viên (cần JWT)
+GET  /api/admin/analytics   → Lấy thống kê (cần JWT)
+POST /api/admin/upload      → Upload ảnh đại diện (cần JWT)
+
+---
+
+## TÍNH NĂNG VCF (Lưu Danh Bạ)
+Khi người dùng nhấn "Lưu Danh Bạ", tạo file .vcf với nội dung:
+BEGIN:VCARD
+VERSION:3.0
+FN:{full_name}
+ORG:{company_name};{department}
+TITLE:{position}
+TEL;TYPE=WORK,VOICE:{phone}
+EMAIL;TYPE=WORK:{email}
+URL:{website_url}
+PHOTO;TYPE=JPEG;ENCODING=URL:{avatar_url}
+END:VCARD
+Trigger download tự động trong trình duyệt.
+
+---
+
+## DỮ LIỆU MẪU (Seed Data)
+Tạo sẵn 3 nhân viên mẫu khi khởi động:
+- Mã 123: Nguyễn Văn A, Giám đốc Kinh doanh, Phòng Kinh Doanh
+- Mã 456: Trần Thị B, Kế toán trưởng, Phòng Tài Chính
+- Mã 001: Lê Minh C, Giám đốc điều hành, Ban Giám Đốc
+Admin mặc định: username=admin, password=admin123
+
+---
+
+## YÊU CẦU THIẾT KẾ UI/UX
+
+**Trang danh thiếp public (quan trọng nhất):**
+- Phong cách: chuyên nghiệp, hiện đại, corporate
+- Màu sắc: trắng + xanh navy (#1a3a5c) + vàng nhạt (#f0c040) làm accent
+- Font: Inter hoặc Roboto
+- Hiệu ứng: hover nhẹ trên các nút, shadow card
+- Responsive hoàn toàn, đẹp trên cả điện thoại lẫn máy tính
+- Tốc độ tải nhanh (lazy load ảnh)
+- Các nút hành động to rõ, dễ nhấn trên mobile (min-height: 48px)
+
+**Trang Admin:**
+- Sidebar navigation, bảng dữ liệu clean
+- Màu nền trắng/xám nhạt
+
+---
+
+## LƯU Ý KỸ THUẬT
+1. Route `/:employee_id` phải xử lý cả số và chữ (ví dụ: /123 và /NV001)
+2. Khi truy cập từ QR code, URL sẽ có query `?src=qr` → ghi analytics source=qr
+3. Khi truy cập từ NFC, URL sẽ có query `?src=nfc` → ghi analytics source=nfc
+4. Trang danh thiếp phải load được khi KHÔNG đăng nhập (public)
+5. Admin dashboard yêu cầu đăng nhập JWT
+6. Ảnh đại diện mặc định nếu chưa upload: avatar placeholder với chữ cái đầu tên
+7. Tất cả text tiếng Việt, có dấu UTF-8
+
+---
+
+## DELIVERABLE CUỐI CÙNG
+- Ứng dụng chạy được ngay với `npm install && npm run dev`
+- README.md hướng dẫn cài đặt và deploy
+- File .env.example với các biến môi trường cần thiết
+- Seed data tự động chạy khi khởi động lần đầu
