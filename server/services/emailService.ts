@@ -1,19 +1,12 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.EMAIL_PORT || "465", 10),
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5000";
+const FROM_EMAIL = process.env.FROM_EMAIL || "HSC Admin Portal <onboarding@resend.dev>";
 
 /**
- * Send email (no-op if EMAIL_USER not configured - for dev)
+ * Send email (no-op if RESEND_API_KEY not configured - for dev)
  */
 async function sendMail(options: {
   to: string;
@@ -21,15 +14,19 @@ async function sendMail(options: {
   html: string;
   text?: string;
 }): Promise<void> {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log("[Email] Skipped (no SMTP config):", options.subject, "->", options.to);
+  if (!process.env.RESEND_API_KEY) {
+    console.log("[Email] Skipped (no RESEND_API_KEY config):", options.subject, "->", options.to);
     return;
   }
   try {
-    await transporter.sendMail({
-      from: `"HSC Admin Portal" <${process.env.EMAIL_USER}>`,
-      ...options,
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
     });
+    console.log("[Email] Sent successfully:", options.subject, "->", options.to);
   } catch (error) {
     console.error("[Email] Failed to send:", options.subject, "->", options.to, error);
     // Don't throw - email failures shouldn't block registration
