@@ -21,6 +21,7 @@ import {
 } from "../utils/tokenUtils.js";
 import {
   findUserByUsernameOrEmail,
+  findUserByUsername,
   findUserByEmail,
   findUserById,
   createUser,
@@ -65,9 +66,17 @@ export async function register(req: Request, res: Response): Promise<void> {
   try {
     const input = registerSchema.parse(req.body);
 
-    const existing = await findUserByUsernameOrEmail(input.username) || await findUserByEmail(input.email);
-    if (existing) {
-      error(res, "Username or email already exists", 400);
+   // Check if username already exists
+    const existingUsername = await findUserByUsername(input.username);
+    if (existingUsername) {
+      error(res, "Username already exists", 400);
+      return;
+    }
+
+    // Check if email already exists
+    const existingEmail = await findUserByEmail(input.email);
+    if (existingEmail) {
+      error(res, "Email already exists", 400);
       return;
     }
 
