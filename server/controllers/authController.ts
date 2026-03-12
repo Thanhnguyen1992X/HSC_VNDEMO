@@ -396,11 +396,16 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
       resetPasswordExpires: expiresAt,
     });
     const resetLink = `${FRONTEND_URL}/auth/reset-password?token=${token}`;
-    await sendPasswordResetEmail(user.email, resetLink);
-    // Dev: log reset link when email may be skipped (helps debugging)
-    if (process.env.NODE_ENV === "development" && (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
-      console.log("[ForgotPassword] Reset link (email skipped):", resetLink);
-    }
+
+    // Send email asynchronously (don't await) so response isn't delayed
+    sendPasswordResetEmail(user.email, resetLink)
+      .then(() => {
+        if (process.env.NODE_ENV === "development" && (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
+          console.log("[ForgotPassword] Reset link (email skipped):", resetLink);
+        }
+      })
+      .catch(err => console.error("[ForgotPassword] Email send failed:", err));
+
     success(res, { message: "If the email exists, a reset link will be sent" });
   } catch (e) {
     if (e instanceof z.ZodError) {
