@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -41,13 +41,14 @@ export default function Register() {
         title: "Registration successful",
         description: "Please verify your email. You can now sign in.",
       });
-      setLocation("/admin/login");
+      setTimeout(() => setLocation("/admin/login"), 500);
     } catch (e) {
       toast({
         title: "Registration failed",
         description: (e as Error).message,
         variant: "destructive",
       });
+      form.reset();
     }
   };
 
@@ -122,8 +123,19 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl">
-                Create Account
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-bold rounded-xl"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
               </Button>
             </form>
           </Form>
