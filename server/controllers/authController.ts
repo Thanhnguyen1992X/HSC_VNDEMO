@@ -92,11 +92,12 @@ export async function register(req: Request, res: Response): Promise<void> {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await saveEmailVerificationToken(user.id, token, expiresAt);
 
-    await sendVerificationEmail(
+    // Send email asynchronously (don't await) so response isn't delayed
+    sendVerificationEmail(
       user.email,
       user.username,
       `${FRONTEND_URL}/auth/verify-email?token=${token}`
-    );
+    ).catch(err => console.error("[Register] Email send failed:", err));
 
     const accessToken = generateAccessToken({
       userId: user.id,
