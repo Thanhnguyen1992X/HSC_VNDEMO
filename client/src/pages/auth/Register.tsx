@@ -27,28 +27,47 @@ export default function Register() {
 
   const onSubmit = async (data: { username: string; email: string; password: string }) => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
         credentials: "include",
+        signal: controller.signal,
       });
-      const json = await res.json();
+
+      clearTimeout(timeoutId);
+
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        json = { message: "Server response error" };
+      }
+
       if (!res.ok) {
         throw new Error(json.message || "Registration failed");
       }
+
       toast({
         title: "Registration successful",
         description: "Please verify your email. You can now sign in.",
       });
-      setTimeout(() => setLocation("/admin/login"), 500);
+
+      // Wait a bit before redirecting so user sees the success message
+      setTimeout(() => setLocation("/admin/login"), 1000);
     } catch (e) {
+      const errorMessage = e instanceof Error
+        ? e.message
+        : (e as any)?.message || "Registration failed. Please try again.";
+
       toast({
         title: "Registration failed",
-        description: (e as Error).message,
+        description: errorMessage,
         variant: "destructive",
       });
-      form.reset();
     }
   };
 

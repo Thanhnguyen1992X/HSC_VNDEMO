@@ -25,10 +25,15 @@ async function sendMail(options: {
     console.log("[Email] Skipped (no SMTP config):", options.subject, "->", options.to);
     return;
   }
-  await transporter.sendMail({
-    from: `"HSC Admin Portal" <${process.env.EMAIL_USER}>`,
-    ...options,
-  });
+  try {
+    await transporter.sendMail({
+      from: `"HSC Admin Portal" <${process.env.EMAIL_USER}>`,
+      ...options,
+    });
+  } catch (error) {
+    console.error("[Email] Failed to send:", options.subject, "->", options.to, error);
+    // Don't throw - email failures shouldn't block registration
+  }
 }
 
 /**
