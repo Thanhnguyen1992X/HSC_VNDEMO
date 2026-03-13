@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 
 export default function ForgotPassword() {
   const { toast } = useToast();
@@ -28,24 +28,42 @@ export default function ForgotPassword() {
 
   const onSubmit = async (data: { email: string }) => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
+        signal: controller.signal,
       });
-      const json = await res.json();
+
+      clearTimeout(timeoutId);
+
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        json = { message: "Server response error" };
+      }
+
       if (!res.ok) {
         throw new Error(json.message || "Failed to send reset email");
       }
+
       setSent(true);
       toast({
         title: "Email sent",
-        description: "If the email exists, a reset link has been sent. Check your inbox.",
+        description: "If the email exists, a reset link has been sent. Check your inbox and spam folder.",
       });
     } catch (e) {
+      const errorMessage = e instanceof Error
+        ? e.message
+        : (e as any)?.message || "Failed to send reset email. Please try again.";
+
       toast({
         title: "Error",
-        description: (e as Error).message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -95,8 +113,19 @@ export default function ForgotPassword() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl">
-                  Send Reset Link
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-bold rounded-xl"
+                  disabled={form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
                 </Button>
               </form>
             </Form>

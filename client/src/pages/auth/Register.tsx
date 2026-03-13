@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -27,25 +27,45 @@ export default function Register() {
 
   const onSubmit = async (data: { username: string; email: string; password: string }) => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
         credentials: "include",
+        signal: controller.signal,
       });
-      const json = await res.json();
+
+      clearTimeout(timeoutId);
+
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        json = { message: "Server response error" };
+      }
+
       if (!res.ok) {
         throw new Error(json.message || "Registration failed");
       }
+
       toast({
         title: "Registration successful",
         description: "Please verify your email. You can now sign in.",
       });
-      setLocation("/admin/login");
+
+      // Wait a bit before redirecting so user sees the success message
+      setTimeout(() => setLocation("/admin/login"), 1000);
     } catch (e) {
+      const errorMessage = e instanceof Error
+        ? e.message
+        : (e as any)?.message || "Registration failed. Please try again.";
+
       toast({
         title: "Registration failed",
-        description: (e as Error).message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -122,8 +142,19 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-12 text-base font-bold rounded-xl">
-                Create Account
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-bold rounded-xl"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
               </Button>
             </form>
           </Form>

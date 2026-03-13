@@ -66,7 +66,7 @@ export async function register(req: Request, res: Response): Promise<void> {
   try {
     const input = registerSchema.parse(req.body);
 
-   // Check if username already exists
+    // Check if username already exists
     const existingUsername = await findUserByUsername(input.username);
     if (existingUsername) {
       error(res, "Username already exists", 400);
@@ -92,11 +92,12 @@ export async function register(req: Request, res: Response): Promise<void> {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await saveEmailVerificationToken(user.id, token, expiresAt);
 
-    await sendVerificationEmail(
+    // Send email asynchronously (don't await) so response isn't delayed
+    sendVerificationEmail(
       user.email,
       user.username,
       `${FRONTEND_URL}/auth/verify-email?token=${token}`
-    );
+    ).catch(err => console.error("[Register] Email send failed:", err));
 
     const accessToken = generateAccessToken({
       userId: user.id,
@@ -395,11 +396,16 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
       resetPasswordExpires: expiresAt,
     });
     const resetLink = `${FRONTEND_URL}/auth/reset-password?token=${token}`;
-    await sendPasswordResetEmail(user.email, resetLink);
-    // Dev: log reset link when email may be skipped (helps debugging)
-    if (process.env.NODE_ENV === "development" && (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
-      console.log("[ForgotPassword] Reset link (email skipped):", resetLink);
-    }
+
+    // Send email asynchronously (don't await) so response isn't delayed
+    sendPasswordResetEmail(user.email, resetLink)
+      .then(() => {
+        if (process.env.NODE_ENV === "development" && (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
+          console.log("[ForgotPassword] Reset link (email skipped):", resetLink);
+        }
+      })
+      .catch(err => console.error("[ForgotPassword] Email send failed:", err));
+
     success(res, { message: "If the email exists, a reset link will be sent" });
   } catch (e) {
     if (e instanceof z.ZodError) {
