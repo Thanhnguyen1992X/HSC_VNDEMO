@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 // Pages
+import Home from "@/pages/Home";
 import NameCard from "@/pages/public/NameCard";
 import Login from "@/pages/admin/Login";
 import UserLogin from "@/pages/user/UserLogin";
@@ -25,6 +26,9 @@ import Settings from "@/pages/admin/Settings";
 function Router() {
   return (
     <Switch>
+      {/* Home */}
+      <Route path="/" component={Home} />
+
       {/* Auth Routes */}
       <Route path="/admin/login" component={Login} />
       <Route path="/user/login" component={UserLogin} />
